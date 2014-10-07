@@ -74,11 +74,13 @@ class Metadata:
             dirname = os.path.dirname(fddata.path)
             if fddata.arch == 'tar':
                 cmd = ['tar', '-C', dirname, '-c', '-m', '--numeric-owner', '--group=0', '--owner=0']
+                filenames = get_pictures(dirname)
             elif fddata.arch == 'zip':
-                cmd = ['zip', '-r', '-', '-j', '--no-extra', '--compression-method', 'store']
+                cmd = ['zip', '-', '-j', '-X', '--compression-method', 'store']
+                filenames = get_abs_pictures(dirname)
             else:
                 raise RuntimeError
-            cmd.extend(get_pictures(dirname))
+            cmd.extend(filenames)
             fddata.archiver_handle = Popen(cmd, stdout=PIPE)
         ret = fddata.archiver_handle.stdout.read(size)
         fddata.offset += len(ret)
