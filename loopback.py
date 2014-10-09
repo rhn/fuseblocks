@@ -124,8 +124,6 @@ class Loopback(LoggingMixIn, Operations):
             'f_blocks', 'f_bsize', 'f_favail', 'f_ffree', 'f_files', 'f_flag',
             'f_frsize', 'f_namemax'))
 
-    utimens = os.utime
-
 if __name__ == '__main__':
     if len(argv) != 3:
         print('usage: %s <root> <mountpoint>' % argv[0])
