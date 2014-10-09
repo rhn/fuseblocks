@@ -3,6 +3,7 @@ import os.path
 from fuse import FuseOSError
 from .base import Backend, OpenFile
 
+
 class DumbFile(OpenFile):
     def __init__(self, path, flags):
         self.fd = os.open(path, flags)

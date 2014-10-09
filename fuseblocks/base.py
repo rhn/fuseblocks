@@ -11,6 +11,7 @@ class Backend(metaclass=ABCMeta):
     # TODO: fill in ABC
     def __init__(self, mount_dir):
         self.mount_dir = mount_dir
+    
     @abstractmethod
     def access(self, path, mode): pass
 
