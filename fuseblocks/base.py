@@ -8,15 +8,16 @@ class VirtStat:
     @classmethod
     def from_stat(cls, stat):
         vstat = cls()
-        for name, value in stat.__dict__.items():
-            if name.startswith('st_'):
+        for field in dir(stat):
+            if field.startswith('st_'):
                 setattr(vstat, field, getattr(stat, field))
         return vstat
 
 
-class OpenFile:
+class OpenFile(metaclass=ABCMeta):
     # TODO: fill in ABC
-    pass
+    @abstractmethod
+    def release(self): pass
 
 
 class Backend(metaclass=ABCMeta):
@@ -29,6 +30,7 @@ class Backend(metaclass=ABCMeta):
 
     @abstractmethod
     def getattr(self, path): pass
+
 
 class FDTracker:
     def __init__(self):
@@ -63,6 +65,8 @@ class ObjectMapper(Operations):
                     for key in
                         filter(lambda x: x.startswith('st_'), dir(st)))
     
+    getxattr = None # to silence "operation not supported"
+    
     def open(self, path, flags):
         fobj = self.backend.open(path, flags)
         return self.fd_tracker.add(fobj)
@@ -77,6 +81,7 @@ class ObjectMapper(Operations):
         return self.backend.readlink(path)
 
     def release(self, path, fh):
+        self.fd_tracker[fh].release()
         del self.fd_tracker[fh]
         return 0
     
