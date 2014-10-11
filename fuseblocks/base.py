@@ -3,6 +3,10 @@ import itertools
 from fuse import FuseOSError, Operations, LoggingMixIn
 
 
+def open_direction(flags):
+    return flags & 0x2
+
+
 class VirtStat:
     """Read-write replacement compatible with stat_result"""
     @classmethod
@@ -16,7 +20,6 @@ class VirtStat:
 
 class OpenFile(metaclass=ABCMeta):
     # TODO: fill in ABC
-    @abstractmethod
     def release(self): pass
 
 
