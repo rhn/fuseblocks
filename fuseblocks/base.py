@@ -64,7 +64,7 @@ class ObjectMapper(Operations):
                         filter(lambda x: x.startswith('st_'), dir(st)))
     
     def open(self, path, flags):
-        fobj = self.backend.open(self, path, flags)
+        fobj = self.backend.open(path, flags)
         return self.fd_tracker.add(fobj)
     
     def read(self, path, size, offset, fh):
