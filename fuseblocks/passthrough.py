@@ -31,10 +31,7 @@ class PassthroughBackend(Backend):
             raise FuseOSError(errno.EACCES)
 
     def getattr(self, path):
-        st = os.stat(self._gbp(path))
-        return dict((key, getattr(st, key))
-                    for key in
-                        filter(lambda x: x.startswith('st_'), dir(st)))
+        return os.stat(self._gbp(path))
         
     def open(self, path, flags):
         return self.OpenFile(self._gbp(path), flags)

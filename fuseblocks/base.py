@@ -2,6 +2,18 @@ from abc import ABCMeta, abstractmethod
 import itertools
 from fuse import FuseOSError, Operations, LoggingMixIn
 
+
+class VirtStat:
+    """Read-write replacement compatible with stat_result"""
+    @classmethod
+    def from_stat(cls, stat):
+        vstat = cls()
+        for name, value in stat.__dict__.items():
+            if name.startswith('st_'):
+                setattr(vstat, field, getattr(stat, field))
+        return vstat
+
+
 class OpenFile:
     # TODO: fill in ABC
     pass
@@ -15,6 +27,8 @@ class Backend(metaclass=ABCMeta):
     @abstractmethod
     def access(self, path, mode): pass
 
+    @abstractmethod
+    def getattr(self, path): pass
 
 class FDTracker:
     def __init__(self):
@@ -44,7 +58,10 @@ class ObjectMapper(Operations):
         return self.backend.access(path, mode)
     
     def getattr(self, path, fh=None):
-        return self.backend.getattr(path)
+        st = self.backend.getattr(path)
+        return dict((key, getattr(st, key))
+                    for key in
+                        filter(lambda x: x.startswith('st_'), dir(st)))
     
     def open(self, path, flags):
         fobj = self.backend.open(self, path, flags)

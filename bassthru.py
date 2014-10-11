@@ -16,7 +16,7 @@ class ObjectMapper(LoggingMixIn, fuseblocks.ObjectMapper): pass
 
 class FilterExtension(fuseblocks.filter.FilterBackend):
     def predicate(self, path):
-        isdir = os.path.stat.S_ISDIR(self.backend.getattr(path)['st_mode'])
+        isdir = os.path.stat.S_ISDIR(self.backend.getattr(path).st_mode)
         return isdir or path.endswith('.py')
 
 
