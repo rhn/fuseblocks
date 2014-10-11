@@ -11,6 +11,10 @@ import fuseblocks.passthrough
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
+
+"""A loopback filesystem example."""
+
+
 class ObjectMapper(LoggingMixIn, fuseblocks.ObjectMapper): pass
 
 if __name__ == '__main__':
