@@ -31,7 +31,11 @@ class PassthroughBackend(Backend):
             raise FuseOSError(errno.EACCES)
 
     def getattr(self, path):
-        return os.stat(self._gbp(path))
+        print("realpath", path)
+        try:
+            return os.stat(self._gbp(path))
+        except OSError as e:
+            raise FuseOSError(e.errno) from e
         
     def open(self, path, flags):
         return self.OpenFile(self._gbp(path), flags)

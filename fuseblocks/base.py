@@ -17,6 +17,14 @@ class VirtStat:
                 setattr(vstat, field, getattr(stat, field))
         return vstat
 
+    def __str__(self):
+        return '{}({})'.format(self.__class__.__name__,
+                               ', '.join('{}={!r}'.format(name, value)
+                                         for name, value in
+                                         sorted(self.__dict__.items())
+                                         if name.startswith('st_')))
+            
+
 
 class OpenFile(metaclass=ABCMeta):
     # TODO: fill in ABC
