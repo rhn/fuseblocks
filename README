@@ -1,0 +1,11 @@
+Modular FUSE filesystem creation framework using fusepy.
+
+Examples found in examples/ directory
+
+
+Resources:
+
+http://fuse.sourceforge.net/doxygen/structfuse__operations.html
+man errno
+man 2 stat
+https://docs.python.org/3/library/os.path.html
