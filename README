@@ -1,4 +1,6 @@
 Modular FUSE filesystem creation framework using fusepy.
+Requires Python3
+
 
 Examples found in examples/ directory
 
