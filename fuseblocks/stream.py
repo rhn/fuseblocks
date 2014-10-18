@@ -42,12 +42,23 @@ class ProcessFSFile(OpenFile):
         if self.read_offset != offset:
             raise FuseOSError(errno.EACCES)
         ret = self.process.stdout.read(size)
+        
+        if self.check_failed(): # check if process returned with an acceptable error code
+            raise FuseOSError(errno.EIO)
+        
         self.read_offset += len(ret)
         return ret
     
     def release(self):
-        self.process.kill()
-        self.process.wait(self.exit_timeout)
+        try:
+            self.process.kill()
+            self.process.wait(self.exit_timeout)
+        except ProcessLookupError: # process doesn't exist already
+            pass
+
+    def check_failed(self):
+        """Method checking whether the process exited with an error, producing invalid output. Override to customize acceptable error codes."""
+        return bool(self.process.poll())
 
     @abstractmethod
     def get_cmd(path):
