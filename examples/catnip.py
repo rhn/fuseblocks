@@ -25,7 +25,7 @@ class CatFile(fuseblocks.stream.ReadOnlyProcess):
         return ['cat', path]
 
 
-class CatProcessor(fuseblocks.stream.ProcessBackend):
+class CatProcessor(fuseblocks.stream.ProcessBlock):
     OpenFile = CatFile
 
 if __name__ == '__main__':
@@ -33,7 +33,7 @@ if __name__ == '__main__':
         print('usage: %s <root> <mountpoint>' % argv[0])
         exit(1)
 
-    backend = CatProcessor(argv[2], argv[1])
+    backend = CatProcessor(argv[1])
     fuse = FUSE(ObjectMapper(argv[2], backend), argv[2], direct_io=True, foreground=True)
 
 

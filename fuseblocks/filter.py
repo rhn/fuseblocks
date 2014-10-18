@@ -1,13 +1,13 @@
 import os.path
 import errno
+from abc import ABCMeta, abstractmethod
 from fuse import FuseOSError
-from .base import Backend
-from .passthrough import PassthroughBackend
+from .base import Block
 
 
 def approved(func):
     def method(self, path, *args, **kwargs):
-        if not self.predicate(path):
+        if not self.is_accessible(path):
             raise FuseOSError(errno.ENOENT)
         return func(self, path, *args, **kwargs)
     return method
@@ -19,12 +19,10 @@ def approved_pass(func_name):
     return method
 
 
-class FilterBackend(Backend):
-    # predicate(self, path)
-    
-    def __init__(self, mount_dir, base_dir):
-        Backend.__init__(self, mount_dir)
-        self.backend = PassthroughBackend(mount_dir, base_dir)
+class FilterBlock(Block, metaclass=ABCMeta):
+    def __init__(self, parent_block):
+        Block.__init__(self)
+        self.backend = parent_block
     
     access = approved_pass('access')
     getattr = approved_pass('getattr')
@@ -34,4 +32,7 @@ class FilterBackend(Backend):
 
     @approved
     def readdir(self, path):
-        return [entname for entname in self.backend.readdir(path) if self.predicate(os.path.join(path, entname))]
+        return [entname for entname in self.backend.readdir(path) if self.is_accessible(os.path.join(path, entname))]
+
+    @abstractmethod
+    def is_accessible(self, path): pass

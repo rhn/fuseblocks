@@ -4,13 +4,14 @@ import subprocess
 import errno
 from abc import ABCMeta, abstractmethod
 from fuse import FuseOSError
-from .base import Backend, OpenFile, VirtStat, open_direction
-from .passthrough import PassthroughBackend
+from .base import Block, OpenFile, VirtStat, open_direction
+from .passthrough import DirectoryBlock
 
 
-class ProcessFile(OpenFile):
-    parent_stderr = False
-    exit_timeout = 60
+class ProcessFSFile(OpenFile):
+    """This file type allows passing a real file through a process and exposing the contents."""
+    parent_stderr = True    # print child process stderr output to the FUSE process stderr (usually console)
+    exit_timeout = 60   # timeout after which close() call will return after an unsuccessful killing
     def __init__(self, path, flags):
         if flags & os.O_APPEND:
             raise FuseOSError(errno.EACCES)
@@ -54,24 +55,33 @@ class ProcessFile(OpenFile):
         pass
         
 
-class ReadOnlyProcess(ProcessFile):
+class ReadOnlyProcess(ProcessFSFile):
     def __init__(self, path, flags):
         if open_direction(flags) in (os.O_WRONLY, os.O_RDWR):
             raise FuseOSError(errno.EACCES)
-        ProcessFile.__init__(self, path, flags)
+        ProcessFSFile.__init__(self, path, flags)
         
 
-class WriteOnlyProcess(ProcessFile):
+class WriteOnlyProcess(ProcessFSFile):
     def __init__(self, path, flags):
         if open_direction(flags) in (os.O_RDONLY, os.O_RDWR):
             raise FuseOSError(errno.EACCES)
-        ProcessFile.__init__(self, path, flags)
+        ProcessFSFile.__init__(self, path, flags)
 
 
-class ProcessBackend(PassthroughBackend):
-    OpenFile = ProcessFile
+class ProcessBlockMixIn:
+    """
+    Block mixin that passes files on the filesystem through a process.
+    It requires a real file, so it will only work with DirectoryBlock and its descendats.
+    """
+    OpenFile = ProcessFSFile
 
     def getattr(self, path):
-        ret = VirtStat.from_stat(PassthroughBackend.getattr(self, path))
+        ret = VirtStat.from_stat(DirectoryBlock.getattr(self, path))
         ret.st_size = 0
         return ret
+
+
+class ProcessBlock(ProcessBlockMixIn, DirectoryBlock):
+    """Block that passes all files on the filesystem through a process."""
+    pass

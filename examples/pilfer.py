@@ -6,18 +6,21 @@ from sys import argv, exit
 
 from fuse import FUSE, LoggingMixIn
 
-import fuseblocks
+from fuseblocks import DirectoryBlock, start_fuse
 import fuseblocks.filter
+import fuseblocks.passthrough
 
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
 """An example file using fuseblocks that filters files according to extension"""
 
+
 class ObjectMapper(LoggingMixIn, fuseblocks.ObjectMapper): pass
 
-class FilterExtension(fuseblocks.filter.FilterBackend):
-    def predicate(self, path):
+
+class FilterExtension(fuseblocks.filter.FilterBlock):
+    def is_accessible(self, path):
         isdir = os.path.stat.S_ISDIR(self.backend.getattr(path).st_mode)
         return isdir or path.endswith('.py')
 
@@ -27,6 +30,6 @@ if __name__ == '__main__':
         print('usage: %s <root> <mountpoint>' % argv[0])
         exit(1)
 
-    backend = FilterExtension(argv[2], argv[1])
+    backend = FilterExtension(fuseblocks.passthrough.DirectoryBlock(argv[1]))
     fuse = FUSE(ObjectMapper(argv[2], backend), argv[2], direct_io=True, foreground=True)
 

@@ -6,7 +6,7 @@ import errno
 
 from fuse import FUSE, LoggingMixIn, FuseOSError
 
-import fuseblocks
+from fuseblocks import start_fuse
 import fuseblocks.transform
 import fuseblocks.stream
 from fuseblocks import util as fbutil
@@ -26,10 +26,12 @@ class RAFFile(fuseblocks.stream.ReadOnlyProcess):
         """The actual command"""
         return ['ufraw-batch', '--out-type=png', '--output=-', path]
 
-class RAFProcessor(fuseblocks.stream.ProcessBackend):
+
+class RAFProcessor(fuseblocks.stream.ProcessBlock):
     OpenFile = RAFFile
 
-class RAFRenameBackend(fuseblocks.transform.TransformNameBackend):
+
+class RAFRenameBlock(fuseblocks.transform.TransformNameBlock):
     def encode_name(self, dec_path, dec_name):
         extname = '.raf'
         if not fbutil.isdir(self.backend, os.path.join(dec_path, dec_name)) and dec_name.lower().endswith(extname):
@@ -43,7 +45,5 @@ if __name__ == '__main__':
         print('usage: %s <root> <mountpoint>' % argv[0])
         exit(1)
 
-    backend = RAFRenameBackend(argv[2], RAFProcessor(argv[2], argv[1]))
-    fuse = FUSE(ObjectMapper(argv[2], backend), argv[2], direct_io=True, foreground=True)
-
-
+    backend = RAFRenameBlock(RAFProcessor(argv[1]))
+    fuseblocks.start_fuse(backend, argv[2], direct_io=True, foreground=True, mapper_class=ObjectMapper)

@@ -6,7 +6,6 @@ from sys import argv, exit
 from fuse import FUSE, LoggingMixIn
 
 import fuseblocks
-import fuseblocks.passthrough
 
 import logging
 logging.basicConfig(level=logging.DEBUG)
@@ -22,5 +21,5 @@ if __name__ == '__main__':
         print('usage: %s <root> <mountpoint>' % argv[0])
         exit(1)
 
-    backend = fuseblocks.passthrough.PassthroughBackend(argv[2], argv[1])
-    fuse = FUSE(ObjectMapper(argv[2], backend), argv[2], direct_io=True, foreground=True)
+    backend = fuseblocks.DirectoryBlock(argv[1])
+    fuseblocks.start_fuse(backend, argv[2], direct_io=True, foreground=True, mapper_class=ObjectMapper)

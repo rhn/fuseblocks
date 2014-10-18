@@ -8,7 +8,7 @@ def open_direction(flags):
 
 
 class VirtStat:
-    """Read-write replacement compatible with stat_result"""
+    """Read-write os.stat_result replacement object."""
     @classmethod
     def from_stat(cls, stat):
         vstat = cls()
@@ -25,17 +25,20 @@ class VirtStat:
                                          if name.startswith('st_')))
             
 
+class BlockException(Exception):
+    """Signifies an error in the backend."""
+    pass
+
 
 class OpenFile(metaclass=ABCMeta):
+    """Basic abstraction for open files"""
     # TODO: fill in ABC
     def release(self): pass
 
 
-class Backend(metaclass=ABCMeta):
+class Block(metaclass=ABCMeta):
+    """Basic building block that can be stacked and chained with other blocks to create a FUSE filesystem."""
     # TODO: fill in ABC
-    def __init__(self, mount_dir):
-        self.mount_dir = mount_dir
-    
     @abstractmethod
     def access(self, path, mode): pass
 
@@ -44,6 +47,7 @@ class Backend(metaclass=ABCMeta):
 
 
 class FDTracker:
+    """Helper object tracking file handles passed to FUSE."""
     def __init__(self):
         self.handles = {}
         
@@ -61,6 +65,7 @@ class FDTracker:
 
 
 class ObjectMapper(Operations):
+    """Object that wraps Block objects in a FUSE interface."""
     def __init__(self, mount, backend):
         self.mount = mount
         self.backend = backend

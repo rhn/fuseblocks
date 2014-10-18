@@ -2,8 +2,8 @@ import os.path
 import errno
 from abc import ABCMeta, abstractmethod
 from fuse import FuseOSError
-from .base import Backend
-from .passthrough import PassthroughBackend
+from .base import Block
+from .passthrough import DirectoryBlock
 
 
 def path_decoded(func):
@@ -17,10 +17,10 @@ def pass_back_dec(func_name):
         return getattr(self.backend, func_name)(path, *args, **kwargs)
     return method
 
-class TransformNameBackend(Backend, metaclass=ABCMeta):
-    def __init__(self, mount_dir, transformed_backend):
-        Backend.__init__(self, mount_dir)
-        self.backend = transformed_backend
+class TransformNameBlock(Block, metaclass=ABCMeta):
+    def __init__(self, parent_block):
+        Block.__init__(self)
+        self.backend = parent_block
         self.path_decodes = {}
     
     access = pass_back_dec('access')

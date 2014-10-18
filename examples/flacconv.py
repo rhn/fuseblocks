@@ -26,10 +26,10 @@ class FLACFile(fuseblocks.stream.ReadOnlyProcess):
         """The actual command"""
         return ['flac', '--best', '--verify', '--stdout', path]
 
-class FLACProcessor(fuseblocks.stream.ProcessBackend):
+class FLACProcessor(fuseblocks.stream.ProcessBlock):
     OpenFile = FLACFile
 
-class FLACRenameBackend(fuseblocks.transform.TransformNameBackend):
+class FLACRenameBackend(fuseblocks.transform.TransformNameBlock):
     def encode_name(self, dec_path, dec_name):
         extname = '.wav'
         if not fbutil.isdir(self.backend, os.path.join(dec_path, dec_name)) and dec_name.lower().endswith(extname):
@@ -43,7 +43,7 @@ if __name__ == '__main__':
         print('usage: %s <root> <mountpoint>' % argv[0])
         exit(1)
 
-    backend = FLACRenameBackend(argv[2], FLACProcessor(argv[2], argv[1]))
+    backend = FLACRenameBackend(FLACProcessor(argv[1]))
     fuse = FUSE(ObjectMapper(argv[2], backend), argv[2], direct_io=True, foreground=True)
 
 
