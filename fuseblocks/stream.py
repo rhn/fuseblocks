@@ -5,7 +5,7 @@ import errno
 from abc import ABCMeta, abstractmethod
 from fuse import FuseOSError
 from .base import Block, OpenFile, VirtStat, open_direction
-from .passthrough import DirectoryBlock
+from .passthrough import DirectoryBlock, path_translated
 
 
 class ProcessFSFile(OpenFile):
@@ -40,7 +40,7 @@ class ProcessFSFile(OpenFile):
         if not self.readable:
             raise FuseOSError(errno.EACCES)
         if self.read_offset != offset:
-            raise FuseOSError(errno.EACCES)
+            raise FuseOSError(errno.EIO)
         ret = self.process.stdout.read(size)
         
         if self.check_failed(): # check if process returned with an acceptable error code
@@ -92,6 +92,76 @@ class ProcessBlockMixIn:
         ret.st_size = 0
         return ret
 
+
+class CacheFile(OpenFile):
+    def __init__(self, store, mode):
+        self.store = store
+        self.mode = mode
+    
+    def read(self, size, offset):
+        return self.store.data[offset:offset+size]
+
+import threading
+class DataStore:
+    def __init__(self):
+        self.complete_lock = threading.Lock()
+        self.data = None
+
+class FileCache:
+    def __init__(self, file_class):
+        self.open_file = file_class
+        self.data_mapping = {}
+        self.mapping_lock = threading.Lock()
+    
+    def get_size(self, path):
+        self.mapping_lock.acquire()
+        try:
+            if path not in self.data_mapping:
+                store = DataStore()
+                self.data_mapping[path] = store
+                with store.complete_lock:
+                    self.mapping_lock.release()
+                    data = b''
+                    open_file = self.open_file(path, os.O_RDONLY)
+                    offset = 0
+                    readsize = 2 ** 16
+                    while True:
+                        new_data = open_file.read(readsize, offset)
+                        data += new_data
+                        offset = len(data)
+                        if len(new_data) < readsize:
+                            break
+                    store.data = data
+                open_file.release()
+            else:
+                self.mapping_lock.release()
+                store = self.data_mapping[path]
+                with store.complete_lock:
+                    pass
+            return len(store.data)
+        except:
+            self.mapping_lock.release()
+        
+    def open(self, path, mode):
+        return CacheFile(self.data_mapping[path], mode)
+
+
+class EagerProcessBlock(DirectoryBlock):
+    OpenFile = ProcessFSFile
+    def __init__(self, root):
+        DirectoryBlock.__init__(self, root)
+        self.cache = FileCache(self.OpenFile)
+    
+    
+    def getattr(self, path):
+        ret = VirtStat.from_stat(DirectoryBlock.getattr(self, path))
+        ret.st_size = self.cache.get_size(self._get_base_path(path))
+        return ret
+
+    @path_translated
+    def open(self, path, mode):
+        return self.cache.open(path, mode)
+        
 
 class ProcessBlock(ProcessBlockMixIn, DirectoryBlock):
     """Block that passes all files on the filesystem through a process."""

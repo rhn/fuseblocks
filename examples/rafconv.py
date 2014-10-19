@@ -29,6 +29,9 @@ class RAFFile(fuseblocks.stream.ReadOnlyProcess):
 class RAFProcessor(fuseblocks.stream.ProcessBlock):
     OpenFile = RAFFile
 
+class EagerRAFProcessor(fuseblocks.stream.EagerProcessBlock):
+    OpenFile = RAFFile
+
 
 if __name__ == '__main__':
     if len(argv) != 3:
@@ -37,7 +40,7 @@ if __name__ == '__main__':
 
     source_dir = argv[1]
     base_block = fuseblocks.DirectoryBlock(source_dir)
-    ending_conversions = [('.raf', '.png', False, RAFProcessor(source_dir))]
+    ending_conversions = [('.raf', '.png', False, EagerRAFProcessor(source_dir))]
     
     backend = ProcessFileByEndingBlock(base_block, ending_conversions)
     fuseblocks.start_fuse(backend, argv[2], direct_io=True, foreground=True, mapper_class=ObjectMapper)

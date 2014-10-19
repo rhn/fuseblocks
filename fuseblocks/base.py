@@ -33,6 +33,7 @@ class BlockException(Exception):
 class OpenFile(metaclass=ABCMeta):
     """Basic abstraction for open files"""
     # TODO: fill in ABC
+    def read(self, size, offset): pass
     def release(self): pass
 
 
