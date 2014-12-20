@@ -1,3 +1,4 @@
 from .base import ObjectMapper
-from .passthrough import DirectoryBlock
+from .realfs import DirectoryBlock
+from .passthrough import OverlayBlock
 from .util import start_fuse

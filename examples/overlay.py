@@ -6,7 +6,6 @@ from sys import argv, exit
 from fuse import FUSE, LoggingMixIn
 
 import fuseblocks
-import fuseblocks.virtual
 
 import logging
 logging.basicConfig(level=logging.DEBUG)
@@ -24,5 +23,5 @@ if __name__ == '__main__':
 
     backend = fuseblocks.DirectoryBlock(argv[1])
     overlay = fuseblocks.DirectoryBlock(argv[2])
-    merge = fuseblocks.virtual.OverlayBlock(backend, overlay)
+    merge = fuseblocks.OverlayBlock(backend, overlay)
     fuseblocks.start_fuse(merge, argv[3], direct_io=True, foreground=True, mapper_class=ObjectMapper)
