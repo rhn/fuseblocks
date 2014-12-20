@@ -106,14 +106,20 @@ class DataStore:
     def __init__(self):
         self.complete_lock = threading.Lock()
         self.data = None
+    
+    def wait_more(self, length, size):
+        lock = threading.Lock()
+        self.queue.append(length, size, lock)
+        self.lock.acquire()
+        self.lock.acquire()
 
-class FileCache:
-    def __init__(self, file_class):
-        self.open_file = file_class
+class WholeCacheBlock(Block):
+    def __init__(self, parent):
+        self.parent = parent
         self.data_mapping = {}
         self.mapping_lock = threading.Lock()
     
-    def get_size(self, path):
+    def get_cache(self, path):
         self.mapping_lock.acquire()
         try:
             if path not in self.data_mapping:
@@ -122,7 +128,7 @@ class FileCache:
                 with store.complete_lock:
                     self.mapping_lock.release()
                     data = b''
-                    open_file = self.open_file(path, os.O_RDONLY)
+                    open_file = self.parent.open(path, os.O_RDONLY)
                     offset = 0
                     readsize = 2 ** 16
                     while True:
@@ -134,34 +140,54 @@ class FileCache:
                     store.data = data
                 open_file.release()
             else:
-                self.mapping_lock.release()
                 store = self.data_mapping[path]
+                self.mapping_lock.release()
                 with store.complete_lock:
                     pass
-            return len(store.data)
+            return store
         except:
             self.mapping_lock.release()
         
     def open(self, path, mode):
-        return CacheFile(self.data_mapping[path], mode)
+        return CacheFile(self.get_cache(path), mode)
 
 
-class EagerProcessBlock(DirectoryBlock):
-    OpenFile = ProcessFSFile
-    def __init__(self, root):
-        DirectoryBlock.__init__(self, root)
-        self.cache = FileCache(self.OpenFile)
+def read_file_size(open_file):
+    offset = 0
+    readsize = 2 ** 16
+    while True:
+        new_data = open_file.read(readsize, offset)
+        offset += len(new_data)
+        if len(new_data) < readsize:
+            break
+    return offset
     
+
+class VerifySizeBlock(Block):
+    """On first request for the file size (getattr, directory listing), reads the whole file and displays its size.
+    Useful only for read-only files.
+    """
+    def __init__(self, parent_block):
+        Block.__init__(self)
+        self.sizes = {}
+        self.backend = parent_block
     
     def getattr(self, path):
-        ret = VirtStat.from_stat(DirectoryBlock.getattr(self, path))
-        ret.st_size = self.cache.get_size(self._get_base_path(path))
+        ret = VirtStat.from_stat(self.backend.getattr(self, path))
+        if path not in self.sizes:
+            open_file = self.backend.open()
+            self.sizes[path] = read_file_size(open_file)
+            open_file.release()
+        ret.st_size = self.sizes[path]
         return ret
 
-    @path_translated
     def open(self, path, mode):
-        return self.cache.open(path, mode)
-        
+        return self.backend.open(path, mode)
+
+
+class EagerProcessBlock(Block):
+    def __init__(self, root_dir):
+        self.parent = VerifySizeBlock(ProcessBlock)
 
 class ProcessBlock(ProcessBlockMixIn, DirectoryBlock):
     """Block that passes all files on the filesystem through a process."""

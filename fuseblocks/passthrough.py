@@ -4,6 +4,8 @@ from fuse import FuseOSError
 from .base import Block, OpenFile, BlockException
 
 
+"""File containing filesystem blocks"""
+
 class FSFile(OpenFile):
     """File object that accesses a file on a host filesystem."""
     def __init__(self, path, flags):

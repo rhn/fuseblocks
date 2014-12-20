@@ -1,11 +1,18 @@
 Modular FUSE filesystem creation framework using fusepy.
+========================================================
+
 Requires Python3
 
+Examples
+--------
 
-Examples found in examples/ directory
+Found in examples/ directory.
 
+* catnip.py
+* pictar.py
 
-Resources:
+Resources
+---------
 
 http://fuse.sourceforge.net/doxygen/structfuse__operations.html
 man errno
