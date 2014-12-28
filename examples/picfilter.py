@@ -18,7 +18,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 
 def is_picture_extension(path):
-    for ext in ['.jpg', '.png', '.tiff', '.tif', '.jpeg']:
+    for ext in ['.jpg', '.png', '.tiff', '.tif', '.jpeg', '.mp4', '.avi']:
         if path.lower().endswith(ext):
             return True
     return False
