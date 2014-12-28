@@ -39,5 +39,5 @@ if __name__ == '__main__':
         exit(1)
 
     backend = FilterExtension(fuseblocks.realfs.DirectoryBlock(argv[1]))
-    fuse = FUSE(ObjectMapper(argv[2], backend), argv[2], direct_io=True, foreground=True)
+    fuseblocks.start_fuse(backend, argv[2], direct_io=True, foreground=True)
 
