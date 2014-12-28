@@ -18,3 +18,9 @@ http://fuse.sourceforge.net/doxygen/structfuse__operations.html
 man errno
 man 2 stat
 https://docs.python.org/3/library/os.path.html
+
+License
+-------
+
+This library and examples is Copyright 2014 rhn <gihu.rhn@porcupinefactory.org>.
+The library and examples are licensed under the GNU GPL 3.0 license.
