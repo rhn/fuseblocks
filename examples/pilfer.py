@@ -30,6 +30,6 @@ if __name__ == '__main__':
         print('usage: %s <root> <mountpoint>' % argv[0])
         exit(1)
 
-    backend = FilterExtension(fuseblocks.passthrough.DirectoryBlock(argv[1]))
+    backend = FilterExtension(fuseblocks.realfs.DirectoryBlock(argv[1]))
     fuse = FUSE(ObjectMapper(argv[2], backend), argv[2], direct_io=True, foreground=True)
 
