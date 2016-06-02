@@ -5,7 +5,7 @@ import errno
 from abc import ABCMeta, abstractmethod
 from fuse import FuseOSError
 from .base import Block, OpenFile, VirtStat, open_direction
-from .passthrough import DirectoryBlock, path_translated
+from .realfs import DirectoryBlock, path_translated
 
 
 class ProcessFSFile(OpenFile):
@@ -80,7 +80,7 @@ class WriteOnlyProcess(ProcessFSFile):
         ProcessFSFile.__init__(self, path, flags)
 
 
-class ProcessBlockMixIn:
+class ProcessBlockFSMixIn:
     """
     Block mixin that passes files on the filesystem through a process.
     It requires a real file, so it will only work with DirectoryBlock and its descendats.
@@ -185,10 +185,10 @@ class VerifySizeBlock(Block):
         return self.backend.open(path, mode)
 
 
-class EagerProcessBlock(Block):
+class EagerProcessBlockFS(Block):
     def __init__(self, root_dir):
-        self.parent = VerifySizeBlock(ProcessBlock)
+        self.parent = VerifySizeBlock(ProcessBlockFS)
 
-class ProcessBlock(ProcessBlockMixIn, DirectoryBlock):
+class ProcessBlockFS(ProcessBlockFSMixIn, DirectoryBlock):
     """Block that passes all files on the filesystem through a process."""
     pass

@@ -36,7 +36,6 @@ class OpenFile(metaclass=ABCMeta):
     def read(self, size, offset): pass
     def release(self): pass
 
-
 class Block(metaclass=ABCMeta):
     """Basic building block that can be stacked and chained with other blocks to create a FUSE filesystem."""
     # TODO: fill in ABC
@@ -46,6 +45,8 @@ class Block(metaclass=ABCMeta):
     @abstractmethod
     def getattr(self, path): pass
 
+    @abstractmethod
+    def readdir(self, path): pass
 
 class FDTracker:
     """Helper object tracking file handles passed to FUSE."""

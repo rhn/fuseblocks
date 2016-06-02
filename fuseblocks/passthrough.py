@@ -6,32 +6,51 @@ from .base import Block
 
 def pass_to_backend(func_name):
     def method(self, *args, **kwargs):
-        return self.apply_method(func_name, *args, **kwargs)
+        return self._apply_method(func_name, *args, **kwargs)
     return method
 
 
-class OverlayBlock(Block):
-    def __init__(self, parent, overlay):
+class Passthrough(Block):
+    REALFS_RESOLVE = True
+    def __init__(self, parent):
         Block.__init__(self)
         self.parent = parent
-        self.overlay = overlay
-    
+        if self.REALFS_RESOLVE and hasattr(parent, '_get_base_path'): # poke a hole through the abstraction to see if file has an underlying FS file
+            self._get_base_path = lambda path: self._apply_method('_get_base_path', path)
+
     access = pass_to_backend('access')
     getattr = pass_to_backend('getattr')
     open = pass_to_backend('open')
     readlink = pass_to_backend('readlink')
     statvfs = pass_to_backend('statvfs')
+    readdir = pass_to_backend('readdir')
+
+    def _apply_method(self, func_name, path, *args, **kwargs):
+        """Override this to alter behaviour."""
+        return getattr(self.parent, func_name)(path, *args, **kwargs)
+
+class OverlayBlock(Passthrough):
+    def __init__(self, parent, overlay):
+        Passthrough.__init__(self, parent)
+        self.overlay = overlay
     
     def readdir(self, path):
-        return list(frozenset(self.parent.readdir(path)).union(frozenset(self.overlay.readdir(path))))
+        def get_entries(source, path):
+            try:
+                return source.readdir(path)
+            except FuseOSError as e:
+                if e.errno != errno.ENOENT:
+                    raise e
+                return []
+        
+        return list(frozenset(get_entries(self.parent, path)) \
+                    .union(get_entries(self.overlay, path)))
     
-    def apply_method(self, func_name, path, *args, **kwargs):
+    def _apply_method(self, func_name, path, *args, **kwargs):
         ovf = getattr(self.overlay, func_name)
         try:
             return ovf(path, *args, **kwargs)
         except FuseOSError as e:
             if e.errno != errno.ENOENT:
                 raise e
-        return getattr(self.parent, func_name)(path, *args, **kwargs)
-
-
+        return Passthrough._apply_method(self, func_name, path, *args, **kwargs)
