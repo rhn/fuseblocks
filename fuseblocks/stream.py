@@ -6,6 +6,7 @@ from abc import ABCMeta, abstractmethod
 from fuse import FuseOSError
 from .base import Block, OpenFile, VirtStat, open_direction
 from .realfs import DirectoryBlock, path_translated
+from .passthrough import Passthrough
 
 
 class ProcessFSFile(OpenFile):
@@ -88,7 +89,7 @@ class ProcessBlockFSMixIn:
     OpenFile = ProcessFSFile
 
     def getattr(self, path):
-        ret = VirtStat.from_stat(DirectoryBlock.getattr(self, path))
+        ret = VirtStat.from_stat(os.stat(self._get_base_path(path)))
         ret.st_size = 0
         return ret
 
@@ -186,9 +187,9 @@ class VerifySizeBlock(Block):
 
 
 class EagerProcessBlockFS(Block):
-    def __init__(self, root_dir):
-        self.parent = VerifySizeBlock(ProcessBlockFS)
+    def __init__(self, parent):
+        self.parent = VerifySizeBlock(ProcessBlockFS(parent))
 
-class ProcessBlockFS(ProcessBlockFSMixIn, DirectoryBlock):
+class ProcessBlockFS(ProcessBlockFSMixIn, Passthrough):
     """Block that passes all files on the filesystem through a process."""
     pass

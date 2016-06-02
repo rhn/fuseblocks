@@ -58,7 +58,7 @@ class Rename(fuseblocks.passthrough.Passthrough):
             base, filename = os.path.split(path)
             req_path = os.path.join(base, 'o', filename)
             try:
-                self.parent.getattr(req_path)
+                self.backend.getattr(req_path)
             except FuseOSError as e:
                 if e.errno != errno.ENOENT:
                     raise e
@@ -90,7 +90,7 @@ if __name__ == '__main__':
         exit(1)
         
     real_fs = fuseblocks.realfs.DirectoryBlock(argv[1])
-    processed_raws = Rename(FilterUFRAW(real_fs))
+    processed_raws = RAFProcessor(Rename(FilterUFRAW(real_fs)))
     filtered_fs = FilterPictures(real_fs)
     backend = fuseblocks.passthrough.OverlayBlock(filtered_fs, processed_raws)
     fuseblocks.start_fuse(backend, argv[2], direct_io=True, foreground=True)

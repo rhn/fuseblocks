@@ -12,10 +12,10 @@ def pass_to_backend(func_name):
 
 class Passthrough(Block):
     REALFS_RESOLVE = True
-    def __init__(self, parent):
+    def __init__(self, backend):
         Block.__init__(self)
-        self.parent = parent
-        if self.REALFS_RESOLVE and hasattr(parent, '_get_base_path'): # poke a hole through the abstraction to see if file has an underlying FS file
+        self.backend = backend
+        if self.REALFS_RESOLVE and hasattr(backend, '_get_base_path'): # poke a hole through the abstraction to see if file has an underlying FS file
             self._get_base_path = lambda path: self._apply_method('_get_base_path', path)
 
     access = pass_to_backend('access')
@@ -27,11 +27,11 @@ class Passthrough(Block):
 
     def _apply_method(self, func_name, path, *args, **kwargs):
         """Override this to alter behaviour."""
-        return getattr(self.parent, func_name)(path, *args, **kwargs)
+        return getattr(self.backend, func_name)(path, *args, **kwargs)
 
 class OverlayBlock(Passthrough):
-    def __init__(self, parent, overlay):
-        Passthrough.__init__(self, parent)
+    def __init__(self, base, overlay):
+        Passthrough.__init__(self, base)
         self.overlay = overlay
     
     def readdir(self, path):
@@ -43,7 +43,7 @@ class OverlayBlock(Passthrough):
                     raise e
                 return []
         
-        return list(frozenset(get_entries(self.parent, path)) \
+        return list(frozenset(get_entries(self.backend, path)) \
                     .union(get_entries(self.overlay, path)))
     
     def _apply_method(self, func_name, path, *args, **kwargs):
