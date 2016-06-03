@@ -37,6 +37,37 @@ class RAFFile(fuseblocks.stream.ReadOnlyProcess):
 
 class RAFFileProcessor(fuseblocks.stream.RawProcessBlockFS):
     OpenFile = RAFFile
+    source_ending = '.ufraw'
+    destination_ending = '.jpg'
+    def _transform_path(self, path):
+        isdir = os.path.stat.S_ISDIR(self.backend.getattr(path).st_mode)
+        if isdir or not path.endswith(self.source_ending):
+            return path
+        return path[:-len(self.source_ending)] + self.destination_ending
+    
+    def _transform_back(self, path):
+        if not path.endswith(self.destination_ending):
+            return path
+        real_path = path[:-len(self.destination_ending)] + self.source_ending
+        try:
+            self.backend.getattr(real_path)
+        except FuseOSError as e:
+            if e.errno == errno.ENOENT:
+                return path
+        return real_path
+
+    def readdir(self, path):
+        return (os.path.basename(self._transform_path(os.path.join(path, entname))) for entname
+                in fuseblocks.stream.RawProcessBlockFS.readdir(self, path))
+
+    def _apply_method(self, func_name, path, *args, **kwargs):
+        print('apply {} on {!r}'.format(func_name, path))
+        try:
+            return fuseblocks.stream.RawProcessBlockFS._apply_method(self, func_name, self._transform_back(path), *args, **kwargs)
+        except Exception as e:
+            print(e)
+            raise e
+
 
 class ProcessUFRAW(fuseblocks.stream.ProcessBlockFS):
     def __init__(self, backend):
@@ -97,5 +128,5 @@ if __name__ == '__main__':
     processed_raws = ProcessUFRAW(Rename(FilterUFRAW(real_fs)))
     filtered_fs = FilterPictures(real_fs)
     backend = fuseblocks.passthrough.OverlayBlock(filtered_fs, processed_raws)
-    fuseblocks.start_fuse(processed_raws, argv[2], direct_io=True, foreground=True)
+    fuseblocks.start_fuse(backend, argv[2], direct_io=True, foreground=True)
 
