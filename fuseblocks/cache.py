@@ -1,4 +1,3 @@
-
 import threading
 import os
 
@@ -32,18 +31,18 @@ class DataCacheBlock(Passthrough):
     def __init__(self, backend):
         self.backend = backend
         self.data_mapping = {}
-        self.mapping_lock = threading.Lock()
+        self.mapping_lock = threading.Lock() # guards data_mapping
     
     def get_cache(self, path):
         self.mapping_lock.acquire()
         try:
             if path not in self.data_mapping:
+                open_file = Passthrough.open(self, path, os.O_RDONLY)
                 store = DataStore()
                 self.data_mapping[path] = store
                 with store.complete_lock:
                     self.mapping_lock.release()
                     data = b''
-                    open_file = Passthrough.open(self, path, os.O_RDONLY)
                     offset = 0
                     readsize = 2 ** 16
                     while True:
@@ -61,7 +60,11 @@ class DataCacheBlock(Passthrough):
                     pass
             return store
         except:
-            self.mapping_lock.release()
+            try: # no nice way to only catch errors up until some point in alternative ifs
+                self.mapping_lock.release()
+            except RuntimeError:
+                pass
+            raise
 
     def open(self, path, mode):
         return CacheFile(self.get_cache(path), mode)

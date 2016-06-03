@@ -61,12 +61,7 @@ class RAFFileProcessor(fuseblocks.stream.RawProcessBlockFS):
                 in fuseblocks.stream.RawProcessBlockFS.readdir(self, path))
 
     def _apply_method(self, func_name, path, *args, **kwargs):
-        print('apply {} on {!r}'.format(func_name, path))
-        try:
-            return fuseblocks.stream.RawProcessBlockFS._apply_method(self, func_name, self._transform_back(path), *args, **kwargs)
-        except Exception as e:
-            print(e)
-            raise e
+        return fuseblocks.stream.RawProcessBlockFS._apply_method(self, func_name, self._transform_back(path), *args, **kwargs)
 
 
 class ProcessUFRAW(fuseblocks.stream.ProcessBlockFS):
