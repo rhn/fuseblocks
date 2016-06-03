@@ -7,6 +7,7 @@ from fuse import FuseOSError
 from .base import Block, OpenFile, VirtStat, open_direction
 from .realfs import DirectoryBlock, path_translated
 from .passthrough import Passthrough
+from .cache import DataCacheBlock
 
 
 class ProcessFSFile(OpenFile):
@@ -81,76 +82,29 @@ class WriteOnlyProcess(ProcessFSFile):
         ProcessFSFile.__init__(self, path, flags)
 
 
-class ProcessBlockFSMixIn:
+class RawProcessBlockFS(Passthrough):
     """
     Block mixin that passes files on the filesystem through a process.
-    It requires a real file, so it will only work with DirectoryBlock and its descendats.
+    It requires a real file, so it will only work with unbroken chains to DirectoryBlock.
     """
     OpenFile = ProcessFSFile
-
     def getattr(self, path):
         ret = VirtStat.from_stat(os.stat(self._get_base_path(path)))
         ret.st_size = 0
         return ret
 
+    def open(self, path, flags):
+        return self.OpenFile(self._get_base_path(path), flags)
 
-class CacheFile(OpenFile):
-    def __init__(self, store, mode):
-        self.store = store
-        self.mode = mode
-    
-    def read(self, size, offset):
-        return self.store.data[offset:offset+size]
 
-import threading
-class DataStore:
-    def __init__(self):
-        self.complete_lock = threading.Lock()
-        self.data = None
-    
-    def wait_more(self, length, size):
-        lock = threading.Lock()
-        self.queue.append(length, size, lock)
-        self.lock.acquire()
-        self.lock.acquire()
-
-class WholeCacheBlock(Passthrough):
-    def __init__(self, backend):
-        self.backend = backend
-        self.data_mapping = {}
-        self.mapping_lock = threading.Lock()
-    
-    def get_cache(self, path):
-        self.mapping_lock.acquire()
-        try:
-            if path not in self.data_mapping:
-                store = DataStore()
-                self.data_mapping[path] = store
-                with store.complete_lock:
-                    self.mapping_lock.release()
-                    data = b''
-                    open_file = self.backend.open(path, os.O_RDONLY)
-                    offset = 0
-                    readsize = 2 ** 16
-                    while True:
-                        new_data = open_file.read(readsize, offset)
-                        data += new_data
-                        offset = len(data)
-                        if len(new_data) < readsize:
-                            break
-                    store.data = data
-                open_file.release()
-            else:
-                store = self.data_mapping[path]
-                self.mapping_lock.release()
-                with store.complete_lock:
-                    pass
-            return store
-        except:
-            self.mapping_lock.release()
-
-    def open(self, path, mode):
-        return CacheFile(self.get_cache(path), mode)
+class ProcessBlockFS(Passthrough):
+    """Block that passes all files backed by the filesystem through a processing block, and caches them.
+    Wraps RawProcessBlockFS.
+    """
+    def __init__(self, process_backend):
+        Passthrough.__init__(self, VerifySizeBlock(
+                                   DataCacheBlock(
+                                   process_backend)))
 
 
 def read_file_size(open_file):
@@ -182,12 +136,3 @@ class VerifySizeBlock(Passthrough):
             open_file.release()
         ret.st_size = self.sizes[path]
         return ret
-
-
-class EagerProcessBlockFS(Block):
-    def __init__(self, parent):
-        self.parent = VerifySizeBlock(ProcessBlockFS(parent))
-
-class ProcessBlockFS(ProcessBlockFSMixIn, Passthrough):
-    """Block that passes all files on the filesystem through a process."""
-    pass

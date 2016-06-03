@@ -10,6 +10,7 @@ import fuseblocks
 from fuseblocks import start_fuse
 import fuseblocks.filter
 import fuseblocks.stream
+import fuseblocks.cache
 
 import logging
 logging.basicConfig(level=logging.DEBUG)
@@ -27,24 +28,20 @@ def is_picture_extension(path):
 
 
 class RAFFile(fuseblocks.stream.ReadOnlyProcess):
+    #out_type = 'png'
+    out_type = 'jpg'
     def get_cmd(self, path):
         """The actual command"""
-        return ['ufraw-batch', '--out-type=png', '--create-id=no', '--output=-', path]
+        return ['ufraw-batch', '--out-type={}'.format(self.out_type), '--create-id=no', '--output=-', path]
 
 
-class RAFProcessor(fuseblocks.stream.ProcessBlockFSMixIn, fuseblocks.passthrough.Passthrough):
+class RAFFileProcessor(fuseblocks.stream.RawProcessBlockFS):
     OpenFile = RAFFile
-    def open(self, path, flags):
-        return self.OpenFile(self._get_base_path(path), flags)
 
-
-class ProcessUFRAW(fuseblocks.passthrough.Passthrough):
+class ProcessUFRAW(fuseblocks.stream.ProcessBlockFS):
     def __init__(self, backend):
-        fuseblocks.passthrough.Passthrough.__init__(self,
-            fuseblocks.stream.VerifySizeBlock(
-            fuseblocks.stream.WholeCacheBlock(
-            RAFProcessor(
-            backend))))
+        fuseblocks.stream.ProcessBlockFS.__init__(self,
+            RAFFileProcessor(backend))
 
 '''
 Ideally, this exposes underlying FS as another FUSE tree at a different mount point for programs which can't take streams for input.
