@@ -29,15 +29,22 @@ def is_picture_extension(path):
 class RAFFile(fuseblocks.stream.ReadOnlyProcess):
     def get_cmd(self, path):
         """The actual command"""
-        return ['ufraw-batch', '--out-type=png', '--output=-', path]
+        return ['ufraw-batch', '--out-type=png', '--create-id=no', '--output=-', path]
 
 
 class RAFProcessor(fuseblocks.stream.ProcessBlockFSMixIn, fuseblocks.passthrough.Passthrough):
     OpenFile = RAFFile
+    def open(self, path, flags):
+        return self.OpenFile(self._get_base_path(path), flags)
 
-class ProcessUFRAW(fuseblocks.base.Block):
-    def __init__(self, root_dir):
-        self.parent = fuseblocks.stream.VerifySizeBlock(fuseblocks.stream.ProcessBlockFS)
+
+class ProcessUFRAW(fuseblocks.passthrough.Passthrough):
+    def __init__(self, backend):
+        fuseblocks.passthrough.Passthrough.__init__(self,
+            fuseblocks.stream.VerifySizeBlock(
+            fuseblocks.stream.WholeCacheBlock(
+            RAFProcessor(
+            backend))))
 
 '''
 Ideally, this exposes underlying FS as another FUSE tree at a different mount point for programs which can't take streams for input.
@@ -90,8 +97,8 @@ if __name__ == '__main__':
         exit(1)
         
     real_fs = fuseblocks.realfs.DirectoryBlock(argv[1])
-    processed_raws = RAFProcessor(Rename(FilterUFRAW(real_fs)))
+    processed_raws = ProcessUFRAW(Rename(FilterUFRAW(real_fs)))
     filtered_fs = FilterPictures(real_fs)
     backend = fuseblocks.passthrough.OverlayBlock(filtered_fs, processed_raws)
-    fuseblocks.start_fuse(backend, argv[2], direct_io=True, foreground=True)
+    fuseblocks.start_fuse(processed_raws, argv[2], direct_io=True, foreground=True)
 

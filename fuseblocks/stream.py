@@ -114,9 +114,9 @@ class DataStore:
         self.lock.acquire()
         self.lock.acquire()
 
-class WholeCacheBlock(Block):
-    def __init__(self, parent):
-        self.parent = parent
+class WholeCacheBlock(Passthrough):
+    def __init__(self, backend):
+        self.backend = backend
         self.data_mapping = {}
         self.mapping_lock = threading.Lock()
     
@@ -129,7 +129,7 @@ class WholeCacheBlock(Block):
                 with store.complete_lock:
                     self.mapping_lock.release()
                     data = b''
-                    open_file = self.parent.open(path, os.O_RDONLY)
+                    open_file = self.backend.open(path, os.O_RDONLY)
                     offset = 0
                     readsize = 2 ** 16
                     while True:
@@ -148,7 +148,7 @@ class WholeCacheBlock(Block):
             return store
         except:
             self.mapping_lock.release()
-        
+
     def open(self, path, mode):
         return CacheFile(self.get_cache(path), mode)
 
@@ -164,26 +164,24 @@ def read_file_size(open_file):
     return offset
     
 
-class VerifySizeBlock(Block):
+class VerifySizeBlock(Passthrough):
     """On first request for the file size (getattr, directory listing), reads the whole file and displays its size.
     Useful only for read-only files.
     """
-    def __init__(self, parent_block):
-        Block.__init__(self)
+    def __init__(self, backend):
+        Passthrough.__init__(self, backend)
         self.sizes = {}
-        self.backend = parent_block
     
     def getattr(self, path):
-        ret = VirtStat.from_stat(self.backend.getattr(self, path))
+        ret = VirtStat.from_stat(Passthrough.getattr(self, path))
+        if os.path.stat.S_ISDIR(ret.st_mode):
+            return ret
         if path not in self.sizes:
-            open_file = self.backend.open()
+            open_file = self.open(path, os.O_RDONLY)
             self.sizes[path] = read_file_size(open_file)
             open_file.release()
         ret.st_size = self.sizes[path]
         return ret
-
-    def open(self, path, mode):
-        return self.backend.open(path, mode)
 
 
 class EagerProcessBlockFS(Block):
