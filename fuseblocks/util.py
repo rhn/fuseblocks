@@ -7,4 +7,4 @@ from fuse import FUSE
 from .base import ObjectMapper
 
 def start_fuse(block, mount_directory, *args, mapper_class=ObjectMapper, **kwargs):
-    return FUSE(mapper_class(mount_directory, block), mount_directory, direct_io=True, foreground=True)
+    return FUSE(mapper_class(mount_directory, block), mount_directory, **kwargs)
