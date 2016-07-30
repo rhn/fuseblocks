@@ -27,18 +27,21 @@ def is_picture_extension(path):
     return False
 
 
-class RAFFile(fuseblocks.stream.ReadOnlyProcess):
-    #out_type = 'png'
-    out_type = 'jpg'
+class RAFFileToJPEG(fuseblocks.stream.ReadOnlyProcess):
+    out_type = 'png'
+#    out_type = 'jpg'
     def get_cmd(self, path):
         """The actual command"""
-        return ['ufraw-batch', '--out-type={}'.format(self.out_type), '--create-id=no', '--output=-', path]
+        return ['ufraw-batch', #'--shrink=4',
+    #             '--noexif',
+                 '--out-type={}'.format(self.out_type), '--create-id=no', '--output=-', path]
 
 
 class RAFFileProcessor(fuseblocks.stream.RawProcessBlockFS):
-    OpenFile = RAFFile
+    OpenFile = RAFFileToJPEG
     source_ending = '.ufraw'
-    destination_ending = '.jpg'
+#    destination_ending = '.jpg'
+    destination_ending = '.png'
     def _transform_path(self, path):
         isdir = os.path.stat.S_ISDIR(self.backend.getattr(path).st_mode)
         if isdir or not path.endswith(self.source_ending):
@@ -77,6 +80,17 @@ class ProcessUFRAW(fuseblocks.passthrough.Passthrough):
         tempmount = underlying
         fuseblocks.passthrough.Passthrough.__init__(self, 
 '''
+
+class HideFound(fuseblocks.passthrough.Passthrough):
+    def __init__(self, backend, excluder):
+        self.excluder = excluder
+        fuseblocks.passthrough.Passthrough.__init__(self, backend)
+
+    def readdir(self, path):
+        excl_readdir = self.excluder.readdir(path)
+        for path in fuseblocks.passthrough.Passthrough.readdir(path):
+            if path[:-4] + '.jpg' not in excl_readdir:
+                yield path
 
 class Rename(fuseblocks.passthrough.Passthrough):
     def readdir(self, path, *args, **kwargs):
@@ -118,7 +132,7 @@ if __name__ == '__main__':
     if len(argv) != 3:
         print('usage: %s <root> <mountpoint>' % argv[0])
         exit(1)
-        
+
     real_fs = fuseblocks.realfs.DirectoryBlock(argv[1])
     processed_raws = ProcessUFRAW(Rename(FilterUFRAW(real_fs)))
     filtered_fs = FilterPictures(real_fs)

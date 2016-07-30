@@ -4,7 +4,7 @@ from abc import ABCMeta, abstractmethod
 from fuse import FuseOSError
 from . import util
 from .base import Block
-from .passthrough import DirectoryBlock
+from .realfs import DirectoryBlock
 
 
 def pass_back_dec(func_name):

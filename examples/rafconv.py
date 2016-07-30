@@ -23,15 +23,19 @@ class ObjectMapper(LoggingMixIn, fuseblocks.ObjectMapper): pass
 class RAFFile(fuseblocks.stream.ReadOnlyProcess):
     def get_cmd(self, path):
         """The actual command"""
-        return ['ufraw-batch', '--out-type=png', '--output=-', path]
+        return ['ufraw-batch', '--out-type=jpg', '--shrink=2', '--output=-', path]
 
 
-class RAFProcessor(fuseblocks.stream.ProcessBlock):
+class RAFFileProcessor(fuseblocks.stream.RawProcessBlockFS):
     OpenFile = RAFFile
 
-class EagerRAFProcessor(fuseblocks.stream.EagerProcessBlock):
-    OpenFile = RAFFile
+#class EagerRAFProcessor(fuseblocks.stream.EagerProcessBlock):
+ #   OpenFile = RAFFile
 
+class ProcessUFRAW(fuseblocks.stream.ProcessBlockFS):
+    def __init__(self, backend):
+        fuseblocks.stream.ProcessBlockFS.__init__(self,
+            RAFFileProcessor(backend))
 
 if __name__ == '__main__':
     if len(argv) != 3:
@@ -40,7 +44,7 @@ if __name__ == '__main__':
 
     source_dir = argv[1]
     base_block = fuseblocks.DirectoryBlock(source_dir)
-    ending_conversions = [('.raf', '.png', False, EagerRAFProcessor(source_dir))]
+    ending_conversions = [('.raf', '.jpg', False, ProcessUFRAW(base_block))]
     
     backend = ProcessFileByEndingBlock(base_block, ending_conversions)
     fuseblocks.start_fuse(backend, argv[2], direct_io=True, foreground=True, mapper_class=ObjectMapper)
