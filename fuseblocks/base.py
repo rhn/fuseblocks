@@ -30,11 +30,36 @@ class BlockException(Exception):
     pass
 
 
+class FileLike:
+    """Wraps OpenFile to provide a streamable file-like interface over a random-access data store.
+    """
+    def __init__(self, file_):
+        """file_ - instance of OpenFile"""
+        self.f = file_
+        self.pos = 0 # FIXME: file_.ftell()
+
+    def read(self, size):
+        d = self.f.read(size, self.pos)
+        self.pos += len(d)
+        return d
+
+    # Context manager should be similar to file() behaviour:
+    # - allow for acting on the file when inside context 
+    # - release file resources when context is released
+    def __enter__(self): return self
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.f.release()
+        return False
+
+
 class OpenFile(metaclass=ABCMeta):
-    """Basic abstraction for open files"""
+    """Basic abstraction for open files.
+    Implements FUSE functions."""
     # TODO: fill in ABC
+    @abstractmethod
     def read(self, size, offset): pass
     def release(self): pass
+
 
 class Block(metaclass=ABCMeta):
     """Basic building block that can be stacked and chained with other blocks to create a FUSE filesystem."""
@@ -47,6 +72,7 @@ class Block(metaclass=ABCMeta):
 
     @abstractmethod
     def readdir(self, path): pass
+
 
 class FDTracker:
     """Helper object tracking file handles passed to FUSE."""
