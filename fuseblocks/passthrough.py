@@ -4,30 +4,32 @@ from fuse import FuseOSError
 from .base import Block
 
 
-def pass_to_backend(func_name):
+def pass_to_parent(func_name):
     def method(self, *args, **kwargs):
         return self._apply_method(func_name, *args, **kwargs)
     return method
 
 
 class Passthrough(Block):
-    REALFS_RESOLVE = True
-    def __init__(self, backend):
+    """Passes requests through to parent block."""
+    REALFS_RESOLVE = True # if parent block is backed by a real filesystem, skip the intermediate calls and use the file directly (TODO: is this correct?)
+    def __init__(self, parent):
         Block.__init__(self)
-        self.backend = backend
-        if self.REALFS_RESOLVE and hasattr(backend, '_get_base_path'): # poke a hole through the abstraction to see if file has an underlying FS file
+        self.backend = parent
+        if self.REALFS_RESOLVE and hasattr(parent, '_get_base_path'): # poke a hole through the abstraction to see if file has an underlying FS file
             self._get_base_path = lambda path: self._apply_method('_get_base_path', path)
 
-    access = pass_to_backend('access')
-    getattr = pass_to_backend('getattr')
-    open = pass_to_backend('open')
-    readlink = pass_to_backend('readlink')
-    statvfs = pass_to_backend('statvfs')
-    readdir = pass_to_backend('readdir')
+    access = pass_to_parent('access')
+    getattr = pass_to_parent('getattr')
+    open = pass_to_parent('open')
+    readlink = pass_to_parent('readlink')
+    statvfs = pass_to_parent('statvfs')
+    readdir = pass_to_parent('readdir')
 
     def _apply_method(self, func_name, path, *args, **kwargs):
         """Override this to alter behaviour."""
         return getattr(self.backend, func_name)(path, *args, **kwargs)
+
 
 class OverlayBlock(Passthrough):
     def __init__(self, base, overlay):
