@@ -1,3 +1,5 @@
+"""Deprecated. Keeping as a reference of the locking implementation."""
+
 import threading
 import os
 

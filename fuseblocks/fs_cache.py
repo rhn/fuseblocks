@@ -34,45 +34,57 @@ class FSStore:
     HashAlg = hashlib.md5
     def __init__(self, path):
         self.path = path # path to directory containing files
-        self.hashes = {} # path to hash mapping
+        self.hashes = {} # id to hash mapping
         if not os.path.isdir(path):
             os.mkdir(path)
     
-    def get(self, path):
+    def get(self, id_):
+        """Fetch file from cache.
+        
+        id_: arbitrary unique id of the file which is useful to parent, usually path
+        """
         try:
-            hash_ = self.hashes[path]
+            hash_ = self.hashes[id_]
         except KeyError:
             return None
         logger.debug("run cache hit")
         cache_path = os.path.join(self.path, hash_)
         return self.OpenFile(cache_path, os.O_RDONLY)
 
-    def rehash(self, path, backing):
-        """Refresh parent's hash and return if cached version found"""
+    def rehash(self, id_, src):
+        """Refresh parent's hash and return if cached version found.
+
+        id_: file identifier useful to the parent block
+        src: stream to hash
+        """
         logger.info("rehashing")
         halg = self.HashAlg()
-        with FileLike(backing) as in_stream:
+        with src:
             while True:
-                chunk = in_stream.read(2**16)
+                chunk = src.read(2**16)
                 if len(chunk) == 0:
                     break
                 halg.update(chunk)
         hash_ = halg.hexdigest()
-        self.hashes[path] = hash_
+        self.hashes[id_] = hash_
         cached_path = os.path.join(self.path, hash_)
         try:
             return self.OpenFile(cached_path, os.O_RDONLY)
         except FileNotFoundError:
             return None
 
-    def update(self, path, src):
-        """Regenerate cache contents. Expects the hash is already known."""
+    def update(self, id_, src):
+        """Regenerate cache contents. Expects the hash is already known.
+
+        id_: file identifier useful to parent
+        data_stream: stream with data to store
+        """
         logger.info("updating cache")
-        hash_ = self.hashes[path]
-        with FileLike(src) as in_stream:
+        hash_ = self.hashes[id_]
+        with src:
             with tempfile.NamedTemporaryFile(mode='w+b', dir=self.path, delete=False) as dest:
                 while True:
-                    chunk = in_stream.read(2**16)
+                    chunk = src.read(2**16)
                     if len(chunk) == 0:
                         break
                     dest.write(chunk)
@@ -92,7 +104,6 @@ class DataCache(Passthrough):
     CACHE_PATH = None # directory where temporary data will be stored
     Store = FSStore
     def __init__(self, parent):
-        """parent - underlying block"""
         self.store = self.Store(self.CACHE_PATH)
         Passthrough.__init__(self, parent)
 
@@ -115,8 +126,10 @@ class DataCache(Passthrough):
         # ASSUMPTION: parent does not change paths
         # these assumptions allow us to reach for parent.parent.open directly
         # A more elegant solution would implement a "datasource" interface on cacheable transformation blocks.
-        cached = self.store.rehash(path, self.parent.datasource.open(path, os.O_RDONLY))
+        cached = self.store.rehash(path,
+            FileLike(self.parent.datasource.open(path, os.O_RDONLY)))
         if cached is not None:
             return cached
 
-        return self.store.update(path, Passthrough.open(self, path, os.O_RDONLY))
+        return self.store.update(path,
+            FileLike(Passthrough.open(self, path, os.O_RDONLY)))
