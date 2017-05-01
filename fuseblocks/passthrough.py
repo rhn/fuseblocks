@@ -15,7 +15,7 @@ class Passthrough(Block):
     REALFS_RESOLVE = True # if parent block is backed by a real filesystem, skip the intermediate calls and use the file directly (TODO: is this correct?)
     def __init__(self, parent):
         Block.__init__(self)
-        self.backend = parent
+        self.parent = parent
         if self.REALFS_RESOLVE and hasattr(parent, '_get_base_path'): # poke a hole through the abstraction to see if file has an underlying FS file
             self._get_base_path = lambda path: self._apply_method('_get_base_path', path)
 
@@ -28,7 +28,7 @@ class Passthrough(Block):
 
     def _apply_method(self, func_name, path, *args, **kwargs):
         """Override this to alter behaviour."""
-        return getattr(self.backend, func_name)(path, *args, **kwargs)
+        return getattr(self.parent, func_name)(path, *args, **kwargs)
 
 
 class OverlayBlock(Passthrough):
@@ -45,7 +45,7 @@ class OverlayBlock(Passthrough):
                     raise e
                 return []
         
-        return list(frozenset(get_entries(self.backend, path)) \
+        return list(frozenset(get_entries(self.parent, path)) \
                     .union(get_entries(self.overlay, path)))
     
     def _apply_method(self, func_name, path, *args, **kwargs):

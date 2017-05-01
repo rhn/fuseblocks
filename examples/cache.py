@@ -18,10 +18,12 @@ logging.basicConfig(level=logging.INFO)
 class ObjectMapper(LoggingMixIn, fuseblocks.ObjectMapper): pass
 
 
+# FIXME: promote to a module
 class LogBlock(Passthrough):
-    def __init__(self, backend, paths):
+    def __init__(self, parent, paths):
         self.matches = [re.compile(path) for path in paths]
-        Passthrough.__init__(self, backend)
+        Passthrough.__init__(self, parent)
+        self.datasource = self.parent.datasource
 
     def _apply_method(self, func_name, path, *args, **kwargs):
         def log_call(func):
@@ -42,12 +44,11 @@ class LogBlock(Passthrough):
             return ret
 
         def real_call():
-            return getattr(self.backend, func_name)(path, *args, **kwargs)
+            return getattr(self.parent, func_name)(path, *args, **kwargs)
         call = real_call
         for match in self.matches:
             if match.search(path) is not None:
                 def call():
-                    print("calling")
                     return log_call(real_call)
                 break
         return call()
@@ -58,6 +59,10 @@ class DataCache(fs_cache.DataCache):
 
 
 class SlowTransform(Passthrough):
+    def __init__(self, parent):
+        Passthrough.__init__(self, parent)
+        self.datasource = self.parent
+
     def getattr(self, path):
         return Passthrough.getattr(self, path)
 
